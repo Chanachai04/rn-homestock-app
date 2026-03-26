@@ -1,98 +1,278 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+} from "react-native";
+import { Theme } from "../../constants/Theme";
+import { supabase } from "../../utils/supabase";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function DashboardScreen() {
+  const router = useRouter();
+  const [session, setSession] = useState<any>(null);
+  const [urgentItems, setUrgentItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default function HomeScreen() {
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const sessionStr = await AsyncStorage.getItem("user_session");
+      if (sessionStr) {
+        const parsedSession = JSON.parse(sessionStr);
+        setSession(parsedSession);
+
+        if (parsedSession.family?.id) {
+          const { data } = await supabase
+            .from("shopping_items_tb")
+            .select("*")
+            .eq("family_id", parsedSession.family.id)
+            .eq("is_purchased", false)
+            .limit(5);
+          
+          if (data) setUrgentItems(data);
+        }
+      }
+    } catch (error) {
+      console.error("Load dashboard error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={Theme.colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header Summary */}
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>
+          ครอบครัว {session?.family?.name || "ของคุณ"}
+        </Text>
+        <Text style={styles.summarySubtitle}>
+          มีรายการต้องซื้อ {urgentItems.length} รายการที่กำลังรอคุณอยู่
+        </Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Quick Actions */}
+      <Text style={styles.sectionTitle}>เมนูด่วน</Text>
+      <View style={styles.quickActions}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => router.push("/scan-in")}
+        >
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: Theme.colors.primaryContainer },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="barcode-scan"
+              size={24}
+              color={Theme.colors.primary}
+            />
+          </View>
+          <Text style={styles.actionText}>สแกนของเข้า</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => router.push("/check-price")}
+        >
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: Theme.colors.secondaryContainer },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="qrcode-scan"
+              size={24}
+              color={Theme.colors.secondary}
+            />
+          </View>
+          <Text style={styles.actionText}>เช็คราคา</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => router.push("/add-member")}
+        >
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: Theme.colors.tertiaryFixed },
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="account-plus"
+              size={24}
+              color={Theme.colors.onTertiaryFixed}
+            />
+          </View>
+          <Text style={styles.actionText}>เพิ่มสมาชิก</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Recent Activity or Reminders */}
+      <Text style={styles.sectionTitle}>สิ่งที่ต้องซื้อด่วน (Urgent)</Text>
+      {urgentItems.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>ไม่มีรายการด่วนในขณะนี้</Text>
+        </View>
+      ) : (
+        urgentItems.map((item) => (
+          <View key={item.id} style={styles.feedCard}>
+            <View style={styles.feedIcon}>
+              <MaterialCommunityIcons
+                name="cart-outline"
+                size={24}
+                color={Theme.colors.primary}
+              />
+            </View>
+            <View style={styles.feedDetails}>
+              <Text style={styles.feedTitle}>{item.name}</Text>
+              <Text style={styles.feedMeta}>
+                จำนวน: {item.quantity} • เพิ่มเมื่อ {new Date(item.created_at).toLocaleDateString('th-TH')}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.addButton}>
+              <MaterialCommunityIcons
+                name="check"
+                size={20}
+                color={Theme.colors.onPrimary}
+              />
+            </TouchableOpacity>
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.surface,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  content: {
+    padding: Theme.spacing.lg,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  summaryCard: {
+    backgroundColor: Theme.colors.surfaceContainerLowest,
+    padding: Theme.spacing.xl,
+    borderRadius: Theme.rounding.xl,
+    marginBottom: Theme.spacing.xl,
+    shadowColor: Theme.colors.onSurface,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 3,
+  },
+  summaryTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: Theme.colors.onSurface,
+    marginBottom: Theme.spacing.xs,
+  },
+  summarySubtitle: {
+    fontSize: 14,
+    color: Theme.colors.onSurfaceVariant,
+    lineHeight: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Theme.colors.onSurface,
+    marginBottom: Theme.spacing.md,
+  },
+  quickActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: Theme.spacing.xl,
+  },
+  actionButton: {
+    alignItems: "center",
+    flex: 1,
+  },
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: Theme.rounding.full,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: Theme.spacing.sm,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Theme.colors.onSurfaceVariant,
+  },
+  feedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.colors.surfaceContainerLowest,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.rounding.lg,
+    marginBottom: Theme.spacing.sm, // Spacing instead of divider line
+  },
+  feedIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Theme.rounding.md,
+    backgroundColor: Theme.colors.surfaceContainerLow,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: Theme.spacing.md,
+  },
+  feedDetails: {
+    flex: 1,
+  },
+  feedTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Theme.colors.onSurface,
+    marginBottom: 4,
+  },
+  feedMeta: {
+    fontSize: 12,
+    color: Theme.colors.onSurfaceVariant,
+  },
+  addButton: {
+    width: 32,
+    height: 32,
+    borderRadius: Theme.rounding.full,
+    backgroundColor: Theme.colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: Theme.spacing.md,
+  },
+  emptyCard: {
+    padding: Theme.spacing.xl,
+    backgroundColor: Theme.colors.surfaceContainerLowest,
+    borderRadius: Theme.rounding.lg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    color: Theme.colors.onSurfaceVariant,
+    fontSize: 14,
   },
 });
+
