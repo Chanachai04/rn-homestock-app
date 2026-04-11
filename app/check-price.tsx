@@ -1,16 +1,16 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Button,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Theme } from "../constants/Theme";
+import {
+  PriceHistoryEntry,
+  formatBaht,
+  getFamilyIdFromSession,
+  getStoredSession,
+  getTrendMeta,
+} from "../utils/familyShopping";
 import { supabase } from "../utils/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function CheckPriceScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -24,7 +24,9 @@ export default function CheckPriceScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>เราต้องการสิทธิ์ในการใช้กล้องเพื่อสแกนบาร์โค้ด</Text>
+        <Text style={styles.message}>
+          เราต้องการสิทธิ์ในการใช้กล้องเพื่อสแกนบาร์โค้ด
+        </Text>
         <Button onPress={requestPermission} title="ให้สิทธิ์เข้าถึงกล้อง" />
       </View>
     );
@@ -33,32 +35,36 @@ export default function CheckPriceScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
     try {
-      const sessionStr = await AsyncStorage.getItem("user_session");
-      if (!sessionStr) {
+      const session = await getStoredSession();
+      const familyId = getFamilyIdFromSession(session);
+
+      if (!familyId) {
         alert("ไม่พบข้อมูลเซสชัน");
         return;
       }
-      const session = JSON.parse(sessionStr);
-      const familyId = session.family?.id;
 
-      // Search price history for this family
       const { data: results, error } = await supabase
         .from("price_history_tb")
-        .select("*")
+        .select(
+          "id, family_id, shopping_item_id, item_name, quantity, price, shop_name, purchased_at, notes, barcode, previous_price, price_difference, price_change_pct, price_trend",
+        )
         .eq("family_id", familyId)
-        .ilike("item_name", `%${data}%`)
-        .order("recorded_at", { ascending: false })
+        .eq("barcode", data)
+        .order("purchased_at", { ascending: false })
         .limit(1);
 
       if (error) throw error;
 
       if (results && results.length > 0) {
-        const item = results[0];
-        alert(`พบข้อมูล: ${item.item_name}\nราคาปัจจุบัน: ${item.price} บาท\nร้านค้า: ${item.shop_name}`);
+        const item = results[0] as PriceHistoryEntry;
+        const trendMeta = getTrendMeta(item);
+        alert(
+          `พบข้อมูล ${item.item_name}\nราคาล่าสุด ${formatBaht(item.price)}\n${item.shop_name ? `ร้าน ${item.shop_name}\n` : ""}${trendMeta.label}`,
+        );
       } else {
-        alert(`ไม่พบข้อมูลราคาสินค้า: ${data}`);
+        alert(`ยังไม่มีประวัติราคาจากบาร์โค้ด ${data}`);
       }
-      setScanned(false); // Let them scan again
+      setScanned(false);
     } catch (err: any) {
       alert(`เกิดข้อผิดพลาด: ${err.message}`);
       setScanned(false);

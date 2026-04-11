@@ -1,64 +1,184 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { Theme } from "../../constants/Theme";
+import {
+  AppSession,
+  ShoppingItem,
+  formatBaht,
+  getFamilyIdFromSession,
+  getStoredSession,
+  toNumber,
+} from "../../utils/familyShopping";
 import { supabase } from "../../utils/supabase";
+
+interface PurchaseFormState {
+  price: string;
+  shopName: string;
+  notes: string;
+}
+
+const defaultPurchaseForm: PurchaseFormState = {
+  price: "",
+  shopName: "",
+  notes: "",
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const [session, setSession] = useState<any>(null);
-  const [urgentItems, setUrgentItems] = useState<any[]>([]);
+  const [session, setSession] = useState<AppSession | null>(null);
+  const [urgentItems, setUrgentItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [purchaseVisible, setPurchaseVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ShoppingItem | null>(null);
+  const [recordingPurchase, setRecordingPurchase] = useState(false);
+  const [purchaseForm, setPurchaseForm] =
+    useState<PurchaseFormState>(defaultPurchaseForm);
 
   useEffect(() => {
-    loadDashboardData();
+    void loadDashboardData();
   }, []);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (isRefreshing = false) => {
     try {
-      setLoading(true);
-      const sessionStr = await AsyncStorage.getItem("user_session");
-      if (sessionStr) {
-        const parsedSession = JSON.parse(sessionStr);
-        setSession(parsedSession);
-
-        if (parsedSession.family?.id) {
-          const { data } = await supabase
-            .from("shopping_items_tb")
-            .select("*")
-            .eq("family_id", parsedSession.family.id)
-            .eq("is_purchased", false)
-            .limit(5);
-          
-          if (data) setUrgentItems(data);
-        }
+      if (isRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
+
+      const storedSession = await getStoredSession();
+      const familyId = getFamilyIdFromSession(storedSession);
+
+      setSession(storedSession);
+
+      if (!familyId) {
+        setUrgentItems([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("shopping_items_tb")
+        .select(
+          "id, family_id, name, quantity, is_purchased, created_at, period_type, period_day, notes, estimated_price, last_price, last_shop_name, last_purchased_at, purchased_at, updated_at, barcode, created_by, updated_by",
+        )
+        .eq("family_id", familyId)
+        .eq("is_purchased", false)
+        .order("updated_at", { ascending: false })
+        .limit(5);
+
+      if (error) {
+        throw error;
+      }
+
+      setUrgentItems((data as ShoppingItem[]) ?? []);
     } catch (error) {
       console.error("Load dashboard error:", error);
     } finally {
-      setLoading(false);
+      if (isRefreshing) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  };
+
+  const openPurchaseModal = (item: ShoppingItem) => {
+    setSelectedItem(item);
+    setPurchaseForm({
+      price:
+        toNumber(item.estimated_price) !== null
+          ? String(toNumber(item.estimated_price))
+          : toNumber(item.last_price) !== null
+            ? String(toNumber(item.last_price))
+            : "",
+      shopName: item.last_shop_name ?? "",
+      notes: item.notes ?? "",
+    });
+    setPurchaseVisible(true);
+  };
+
+  const closePurchaseModal = (forceClose = false) => {
+    if (recordingPurchase && !forceClose) {
+      return;
+    }
+
+    setPurchaseVisible(false);
+    setSelectedItem(null);
+    setPurchaseForm(defaultPurchaseForm);
+  };
+
+  const submitPurchase = async () => {
+    if (!selectedItem) {
+      return;
+    }
+
+    const numericPrice = Number(purchaseForm.price);
+
+    if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+      Alert.alert("ข้อผิดพลาด", "กรุณากรอกราคาที่ถูกต้อง");
+      return;
+    }
+
+    setRecordingPurchase(true);
+
+    try {
+      const { error } = await supabase.rpc("record_purchase", {
+        p_item_id: selectedItem.id,
+        p_price: numericPrice,
+        p_shop_name: purchaseForm.shopName.trim() || null,
+        p_purchased_by: session?.user?.id ?? null,
+        p_notes: purchaseForm.notes.trim() || null,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      closePurchaseModal(true);
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Record purchase error:", error);
+      Alert.alert("ข้อผิดพลาด", "ไม่สามารถบันทึกการซื้อและประวัติราคาได้");
+    } finally {
+      setRecordingPurchase(false);
     }
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
+      <View style={[styles.container, { justifyContent: "center" }]}>
         <ActivityIndicator size="large" color={Theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void loadDashboardData(true)}
+          colors={[Theme.colors.primary]}
+          tintColor={Theme.colors.primary}
+        />
+      }
+    >
       {/* Header Summary */}
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>
@@ -72,7 +192,7 @@ export default function DashboardScreen() {
       {/* Quick Actions */}
       <Text style={styles.sectionTitle}>เมนูด่วน</Text>
       <View style={styles.quickActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => router.push("/scan-in")}
         >
@@ -91,26 +211,7 @@ export default function DashboardScreen() {
           <Text style={styles.actionText}>สแกนของเข้า</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => router.push("/check-price")}
-        >
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: Theme.colors.secondaryContainer },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="qrcode-scan"
-              size={24}
-              color={Theme.colors.secondary}
-            />
-          </View>
-          <Text style={styles.actionText}>เช็คราคา</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => router.push("/add-member")}
         >
@@ -149,10 +250,17 @@ export default function DashboardScreen() {
             <View style={styles.feedDetails}>
               <Text style={styles.feedTitle}>{item.name}</Text>
               <Text style={styles.feedMeta}>
-                จำนวน: {item.quantity} • เพิ่มเมื่อ {new Date(item.created_at).toLocaleDateString('th-TH')}
+                จำนวน: {item.quantity} • เพิ่มเมื่อ{" "}
+                {new Date(item.created_at).toLocaleDateString("th-TH")}
               </Text>
             </View>
-            <TouchableOpacity style={styles.addButton}>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => openPurchaseModal(item)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`บันทึกการซื้อ ${item.name}`}
+            >
               <MaterialCommunityIcons
                 name="check"
                 size={20}
@@ -162,6 +270,91 @@ export default function DashboardScreen() {
           </View>
         ))
       )}
+
+      <Modal
+        visible={purchaseVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => closePurchaseModal()}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>บันทึกการซื้อ</Text>
+              <TouchableOpacity onPress={() => closePurchaseModal()}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color={Theme.colors.onSurface}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.purchaseItemName}>{selectedItem?.name}</Text>
+            <Text style={styles.purchaseHint}>
+              {selectedItem?.last_price
+                ? `ครั้งก่อนซื้อที่ ${formatBaht(selectedItem.last_price)}${selectedItem.last_shop_name ? ` จาก ${selectedItem.last_shop_name}` : ""}`
+                : "ยังไม่มีประวัติราคาเดิมสำหรับรายการนี้"}
+            </Text>
+
+            <Text style={styles.inputLabel}>ราคาที่ซื้อจริง</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="decimal-pad"
+              placeholder="เช่น 150.00"
+              placeholderTextColor={Theme.colors.onSurfaceVariant}
+              value={purchaseForm.price}
+              onChangeText={(value) =>
+                setPurchaseForm((current) => ({
+                  ...current,
+                  price: value.replace(/[^0-9.]/g, ""),
+                }))
+              }
+            />
+
+            <Text style={styles.inputLabel}>ร้านค้า</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="เช่น Lotus, Big C"
+              placeholderTextColor={Theme.colors.onSurfaceVariant}
+              value={purchaseForm.shopName}
+              onChangeText={(value) =>
+                setPurchaseForm((current) => ({ ...current, shopName: value }))
+              }
+            />
+
+            <Text style={styles.inputLabel}>หมายเหตุ</Text>
+            <TextInput
+              style={[styles.modalInput, styles.notesInput]}
+              placeholder="เช่น โปรโมชั่นสมาชิก, ซื้อแพ็กใหญ่"
+              placeholderTextColor={Theme.colors.onSurfaceVariant}
+              multiline
+              textAlignVertical="top"
+              value={purchaseForm.notes}
+              onChangeText={(value) =>
+                setPurchaseForm((current) => ({ ...current, notes: value }))
+              }
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                recordingPurchase && styles.buttonDisabled,
+              ]}
+              onPress={() => void submitPurchase()}
+              disabled={recordingPurchase}
+            >
+              {recordingPurchase ? (
+                <ActivityIndicator color={Theme.colors.onPrimary} />
+              ) : (
+                <Text style={styles.primaryButtonText}>
+                  ซื้อแล้วและบันทึกราคา
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -255,13 +448,18 @@ const styles = StyleSheet.create({
     color: Theme.colors.onSurfaceVariant,
   },
   addButton: {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: Theme.rounding.full,
     backgroundColor: Theme.colors.primary,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: Theme.spacing.md,
+    shadowColor: Theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 3,
   },
   emptyCard: {
     padding: Theme.spacing.xl,
@@ -274,5 +472,69 @@ const styles = StyleSheet.create({
     color: Theme.colors.onSurfaceVariant,
     fontSize: 14,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+    justifyContent: "center",
+    padding: Theme.spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.rounding.xl,
+    padding: Theme.spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Theme.spacing.md,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: Theme.colors.onSurface,
+  },
+  purchaseItemName: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Theme.colors.onSurface,
+  },
+  purchaseHint: {
+    fontSize: 13,
+    color: Theme.colors.onSurfaceVariant,
+    marginTop: Theme.spacing.xs,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Theme.colors.onSurface,
+    marginTop: Theme.spacing.md,
+    marginBottom: Theme.spacing.xs,
+  },
+  modalInput: {
+    backgroundColor: Theme.colors.surfaceContainerHigh,
+    borderRadius: Theme.rounding.md,
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.md,
+    fontSize: 15,
+    color: Theme.colors.onSurface,
+  },
+  notesInput: {
+    minHeight: 92,
+  },
+  primaryButton: {
+    backgroundColor: Theme.colors.primary,
+    borderRadius: Theme.rounding.full,
+    paddingVertical: Theme.spacing.md,
+    alignItems: "center",
+    marginTop: Theme.spacing.lg,
+  },
+  primaryButtonText: {
+    color: Theme.colors.onPrimary,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
 });
-

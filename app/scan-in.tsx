@@ -1,17 +1,16 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Button,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Theme } from "../constants/Theme";
+import {
+  PriceHistoryEntry,
+  formatBaht,
+  getFamilyIdFromSession,
+  getStoredSession,
+} from "../utils/familyShopping";
 import { supabase } from "../utils/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function ScanInScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -27,7 +26,9 @@ export default function ScanInScreen() {
     // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>เราต้องการสิทธิ์ในการใช้กล้องเพื่อสแกนบาร์โค้ด</Text>
+        <Text style={styles.message}>
+          เราต้องการสิทธิ์ในการใช้กล้องเพื่อสแกนบาร์โค้ด
+        </Text>
         <Button onPress={requestPermission} title="ให้สิทธิ์เข้าถึงกล้อง" />
       </View>
     );
@@ -36,30 +37,87 @@ export default function ScanInScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
     try {
-      const sessionStr = await AsyncStorage.getItem("user_session");
-      if (!sessionStr) {
+      const session = await getStoredSession();
+      const familyId = getFamilyIdFromSession(session);
+      const userId = session?.user?.id ?? null;
+
+      if (!session) {
         alert("ไม่พบข้อมูลเซสชัน กรุณาเข้าสู่ระบบใหม่");
         return;
       }
-      const session = JSON.parse(sessionStr);
-      const familyId = session.family?.id;
 
       if (!familyId) {
         alert("ไม่พบข้อมูลครอบครัว กรุณาเข้าสู่ระบบใหม่");
         return;
       }
 
-      // Add to shopping items
-      const { error } = await supabase.from("shopping_items_tb").insert({
-        family_id: familyId,
-        name: `สินค้า: ${data}`, // Use barcode data as name for now
-        quantity: 1,
-        is_purchased: false,
-      });
+      const { data: recentHistory, error: historyError } = await supabase
+        .from("price_history_tb")
+        .select(
+          "id, family_id, shopping_item_id, item_name, quantity, price, shop_name, purchased_at, notes, barcode, previous_price, price_difference, price_change_pct, price_trend",
+        )
+        .eq("family_id", familyId)
+        .eq("barcode", data)
+        .order("purchased_at", { ascending: false })
+        .limit(1);
 
-      if (error) throw error;
+      if (historyError) throw historyError;
 
-      alert(`สแกนสำเร็จ: ${data} เพิ่มลงรายการซื้อของแล้ว`);
+      const latestPrice =
+        (recentHistory?.[0] as PriceHistoryEntry | undefined) ?? null;
+
+      const { data: existingItems, error: existingError } = await supabase
+        .from("shopping_items_tb")
+        .select("id, quantity")
+        .eq("family_id", familyId)
+        .eq("barcode", data)
+        .eq("is_purchased", false)
+        .limit(1);
+
+      if (existingError) throw existingError;
+
+      if (existingItems && existingItems.length > 0) {
+        const existingItem = existingItems[0];
+        const { error: updateError } = await supabase
+          .from("shopping_items_tb")
+          .update({
+            quantity: (existingItem.quantity ?? 0) + 1,
+            estimated_price: latestPrice?.price ?? null,
+            last_price: latestPrice?.price ?? null,
+            last_shop_name: latestPrice?.shop_name ?? null,
+            last_purchased_at: latestPrice?.purchased_at ?? null,
+            updated_by: userId,
+          })
+          .eq("id", existingItem.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("shopping_items_tb")
+          .insert({
+            family_id: familyId,
+            name: latestPrice?.item_name ?? `สินค้า ${data}`,
+            quantity: 1,
+            is_purchased: false,
+            barcode: data,
+            period_type: "weekly",
+            period_day: 1,
+            estimated_price: latestPrice?.price ?? null,
+            last_price: latestPrice?.price ?? null,
+            last_shop_name: latestPrice?.shop_name ?? null,
+            last_purchased_at: latestPrice?.purchased_at ?? null,
+            created_by: userId,
+            updated_by: userId,
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      alert(
+        latestPrice
+          ? `สแกนสำเร็จ เพิ่มเข้ารายการซื้อแล้ว\nราคาครั้งล่าสุด ${formatBaht(latestPrice.price)}`
+          : `สแกนสำเร็จ: ${data} เพิ่มลงรายการซื้อของแล้ว`,
+      );
       router.back();
     } catch (err: any) {
       alert(`เกิดข้อผิดพลาด: ${err.message}`);
@@ -77,7 +135,10 @@ export default function ScanInScreen() {
         }}
       />
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <MaterialCommunityIcons name="arrow-left" size={28} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>สแกนของเข้า</Text>

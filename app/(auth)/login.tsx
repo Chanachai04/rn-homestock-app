@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import bcrypt from "bcryptjs";
 import { useRouter } from "expo-router";
@@ -31,6 +32,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -117,10 +119,20 @@ export default function LoginScreen() {
               style={styles.input}
               placeholder="รหัสผ่าน (Password)"
               placeholderTextColor={Theme.colors.onSurfaceVariant}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword((current) => !current)}
+            >
+              <MaterialCommunityIcons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={22}
+                color={Theme.colors.onSurfaceVariant}
+              />
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -198,8 +210,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Theme.spacing.md,
     paddingVertical:
       Platform.OS === "ios" ? Theme.spacing.md : Theme.spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  input: { fontSize: 16, color: Theme.colors.onSurface },
+  input: { flex: 1, fontSize: 16, color: Theme.colors.onSurface },
+  eyeButton: {
+    paddingLeft: Theme.spacing.sm,
+  },
   forgotPassword: { alignSelf: "flex-end", marginBottom: Theme.spacing.xl },
   forgotPasswordText: {
     color: Theme.colors.primary,
