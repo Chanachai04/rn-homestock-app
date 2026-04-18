@@ -1,12 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { Stack } from "expo-router";
 import { Theme } from "../constants/theme";
 
 export default function RootLayout() {
   const [isLoading, setIsLoading] = useState(true);
-  const [initialRoute, setInitialRoute] = useState<"(auth)" | "(tabs)">("(auth)");
+  const [initialRoute, setInitialRoute] = useState<"(auth)" | "(tabs)">(
+    "(auth)",
+  );
 
   useEffect(() => {
     bootstrapAsync();
@@ -49,7 +51,10 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+    <Stack
+      screenOptions={{ headerShown: false }}
+      initialRouteName={initialRoute}
+    >
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>

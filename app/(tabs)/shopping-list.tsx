@@ -21,8 +21,6 @@ import {
   ShoppingItem,
   formatBaht,
   formatPeriodLabel,
-  getEstimatedDelta,
-  getEstimatedDeltaLabel,
   getFamilyIdFromSession,
   getStoredSession,
   toNumber,
@@ -342,7 +340,7 @@ export default function ShoppingListScreen() {
   };
 
   const submitPurchase = async () => {
-    if (!selectedItem) {
+    if (!selectedItem || !session) {
       return;
     }
 
@@ -356,25 +354,108 @@ export default function ShoppingListScreen() {
     setRecordingPurchase(true);
 
     try {
-      const { error } = await supabase.rpc("record_purchase", {
-        p_item_id: selectedItem.id,
-        p_price: numericPrice,
-        p_shop_name: purchaseForm.shopName.trim() || null,
-        p_purchased_by: session?.user?.id ?? null,
-        p_notes: purchaseForm.notes.trim() || null,
-      });
+      const now = new Date().toISOString();
+      const familyId = getFamilyIdFromSession(session);
 
-      if (error) {
-        throw error;
+      if (!familyId) {
+        throw new Error("Family ID not found");
+      }
+
+      // Update shopping item with new price
+      const { error: updateError } = await supabase
+        .from("shopping_items_tb")
+        .update({
+          last_price: numericPrice,
+          last_purchased_at: now,
+          last_shop_name: purchaseForm.shopName.trim() || null,
+          is_purchased: true,
+        })
+        .eq("id", selectedItem.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Get previous price history for this item by name
+      const { data: historyData } = await supabase
+        .from("price_history_tb")
+        .select("price")
+        .eq("family_id", familyId)
+        .eq("item_name", selectedItem.name)
+        .order("purchased_at", { ascending: false })
+        .limit(1);
+
+      const previousPrice =
+        historyData && historyData.length > 0
+          ? Number(historyData[0].price)
+          : null;
+
+      // Calculate price trend and differences
+      let priceTrend: "first" | "up" | "down" | "same" = "first";
+      let priceDifference: number | null = null;
+      let priceChangePct: number | null = null;
+
+      if (previousPrice !== null) {
+        priceDifference = numericPrice - previousPrice;
+
+        if (priceDifference > 0) {
+          priceTrend = "up";
+        } else if (priceDifference < 0) {
+          priceTrend = "down";
+        } else {
+          priceTrend = "same";
+        }
+
+        if (previousPrice !== 0) {
+          priceChangePct = (priceDifference / previousPrice) * 100;
+        }
+      }
+
+      // Create price history entry
+      const { error: historyError } = await supabase
+        .from("price_history_tb")
+        .insert({
+          family_id: familyId,
+          shopping_item_id: selectedItem.id,
+          item_name: selectedItem.name,
+          quantity: selectedItem.quantity || 1,
+          price: numericPrice,
+          shop_name: purchaseForm.shopName.trim() || null,
+          purchased_at: now,
+          notes: purchaseForm.notes.trim() || null,
+          barcode: selectedItem.barcode,
+          previous_price: previousPrice,
+          price_difference: priceDifference,
+          price_change_pct: priceChangePct,
+          price_trend: priceTrend,
+        });
+
+      if (historyError) {
+        throw historyError;
       }
 
       setPurchaseVisible(false);
       setSelectedItem(null);
       setPurchaseForm(defaultPurchaseForm);
       await loadShoppingList();
+
+      Alert.alert(
+        "สำเร็จ",
+        `บันทึกการซื้อแล้ว\nราคา: ${formatBaht(numericPrice)}${
+          priceTrend !== "first"
+            ? `\n${
+                priceTrend === "up"
+                  ? `เพิ่มขึ้น ${formatBaht(priceDifference)}`
+                  : priceTrend === "down"
+                    ? `ลดลง ${formatBaht(Math.abs(priceDifference ?? 0))}`
+                    : "ราคาเท่าครั้งก่อน"
+              }`
+            : ""
+        }`,
+      );
     } catch (error) {
       console.error("Record purchase error:", error);
-      Alert.alert("ข้อผิดพลาด", "ไม่สามารถบันทึกการซื้อและประวัติราคาได้");
+      Alert.alert("ข้อผิดพลาด", "ไม่สามารถบันทึกการซื้อได้");
     } finally {
       setRecordingPurchase(false);
     }
@@ -413,111 +494,106 @@ export default function ShoppingListScreen() {
 
   const renderItem = ({ item }: { item: ShoppingItem }) => {
     const isPurchased = item.is_purchased;
-    const estimatedDeltaValue = getEstimatedDelta(
-      item.estimated_price,
-      item.last_price,
-    );
-    const estimatedDeltaLabel = getEstimatedDeltaLabel(
-      item.estimated_price,
-      item.last_price,
-    );
 
     return (
-      <View style={[styles.itemCard, isPurchased && styles.itemCardPurchased]}>
-        <TouchableOpacity
-          style={styles.checkboxContainer}
-          onPress={() => togglePurchased(item)}
+      <TouchableOpacity
+        style={styles.itemCardWrapper}
+        onPress={() => {
+          setSelectedItem(item);
+          setPurchaseForm({
+            price: item.estimated_price ? String(item.estimated_price) : "",
+            shopName: "",
+            notes: "",
+          });
+          setPurchaseVisible(true);
+        }}
+        activeOpacity={1}
+      >
+        <View
+          style={[styles.itemCard, isPurchased && styles.itemCardPurchased]}
         >
-          <MaterialCommunityIcons
-            name={
-              isPurchased
-                ? "checkbox-marked-circle"
-                : "checkbox-blank-circle-outline"
-            }
-            size={28}
-            color={
-              isPurchased ? Theme.colors.primary : Theme.colors.outlineVariant
-            }
-          />
-        </TouchableOpacity>
-
-        <View style={styles.itemDetails}>
-          <View style={styles.itemTitleRow}>
-            <Text
-              style={[styles.itemName, isPurchased && styles.itemNamePurchased]}
-            >
-              {item.name}
-            </Text>
-            <Text style={styles.periodBadge}>
-              {formatPeriodLabel(item.period_type, item.period_day)}
-            </Text>
-          </View>
-          <Text style={styles.itemMeta}>จำนวน {item.quantity ?? 1} ชิ้น</Text>
-          <View style={styles.priceMetaRow}>
-            <Text style={styles.itemMeta}>
-              งบรอบนี้ {formatBaht(item.estimated_price)}
-            </Text>
-            <Text style={styles.itemMeta}>
-              ล่าสุด {formatBaht(item.last_price)}
-            </Text>
-          </View>
-          {estimatedDeltaLabel ? (
-            <Text
-              style={[
-                styles.priceCompareText,
-                estimatedDeltaValue !== null && estimatedDeltaValue > 0
-                  ? styles.priceUp
-                  : estimatedDeltaValue !== null && estimatedDeltaValue < 0
-                    ? styles.priceDown
-                    : styles.priceNeutral,
-              ]}
-            >
-              {estimatedDeltaLabel}
-            </Text>
-          ) : null}
-          {item.last_purchased_at ? (
-            <Text style={styles.itemMeta}>
-              ซื้อครั้งล่าสุด{" "}
-              {new Date(item.last_purchased_at).toLocaleDateString("th-TH")}
-              {item.last_shop_name ? ` • ${item.last_shop_name}` : ""}
-            </Text>
-          ) : null}
-          {item.notes ? (
-            <Text style={styles.noteText}>{item.notes}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.itemActions}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.editActionButton]}
-            onPress={() => openEditModal(item)}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={`แก้ไขรายการ ${item.name}`}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={styles.checkboxContainer}
+            onPress={() => togglePurchased(item)}
+            activeOpacity={0.8}
           >
             <MaterialCommunityIcons
-              name="pencil-outline"
-              size={20}
-              color={Theme.colors.primary}
+              name={
+                isPurchased
+                  ? "checkbox-marked-circle"
+                  : "checkbox-blank-circle-outline"
+              }
+              size={28}
+              color={
+                isPurchased ? Theme.colors.primary : Theme.colors.outlineVariant
+              }
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteActionButton]}
-            onPress={() => confirmDelete(item.id)}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={`ลบรายการ ${item.name}`}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <MaterialCommunityIcons
-              name="trash-can-outline"
-              size={20}
-              color={Theme.colors.error}
-            />
-          </TouchableOpacity>
+
+          <View style={styles.itemDetails}>
+            <View style={styles.itemTitleRow}>
+              <Text
+                style={[
+                  styles.itemName,
+                  isPurchased && styles.itemNamePurchased,
+                ]}
+              >
+                {item.name}
+              </Text>
+              <Text style={styles.periodBadge}>
+                {formatPeriodLabel(item.period_type, item.period_day)}
+              </Text>
+            </View>
+            <Text style={styles.itemMeta}>จำนวน {item.quantity ?? 1} ชิ้น</Text>
+            <View style={styles.priceMetaRow}>
+              <Text style={styles.itemMeta}>
+                ราคาโดยประมาณ {formatBaht(item.estimated_price)}
+              </Text>
+              <Text style={styles.itemMeta}>
+                ราคาซื้อจริง {formatBaht(item.last_price)}
+              </Text>
+            </View>
+            {item.last_purchased_at ? (
+              <Text style={styles.itemMeta}>
+                ซื้อครั้งล่าสุด{" "}
+                {new Date(item.last_purchased_at).toLocaleDateString("th-TH")}
+                {item.last_shop_name ? ` • ${item.last_shop_name}` : ""}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.itemActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editActionButton]}
+              onPress={() => openEditModal(item)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`แก้ไขรายการ ${item.name}`}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={20}
+                color={Theme.colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteActionButton]}
+              onPress={() => confirmDelete(item.id)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`ลบรายการ ${item.name}`}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <MaterialCommunityIcons
+                name="trash-can-outline"
+                size={20}
+                color={Theme.colors.error}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -826,67 +902,73 @@ export default function ShoppingListScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.purchaseItemName}>{selectedItem?.name}</Text>
-            <Text style={styles.purchaseHint}>
-              {selectedItem?.last_price
-                ? `ครั้งก่อนซื้อที่ ${formatBaht(selectedItem.last_price)}${selectedItem.last_shop_name ? ` จาก ${selectedItem.last_shop_name}` : ""}`
-                : "ยังไม่มีประวัติราคาเดิมสำหรับรายการนี้"}
-            </Text>
-
-            <Text style={styles.inputLabel}>ราคาที่ซื้อจริง</Text>
-            <TextInput
-              style={styles.modalInput}
-              keyboardType="decimal-pad"
-              placeholder="เช่น 150.00"
-              value={purchaseForm.price}
-              onChangeText={(value) =>
-                setPurchaseForm((current) => ({
-                  ...current,
-                  price: value.replace(/[^0-9.]/g, ""),
-                }))
-              }
-            />
-
-            <Text style={styles.inputLabel}>ร้านค้า</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="เช่น Lotus, Big C"
-              placeholderTextColor={Theme.colors.onSurfaceVariant}
-              value={purchaseForm.shopName}
-              onChangeText={(value) =>
-                setPurchaseForm((current) => ({ ...current, shopName: value }))
-              }
-            />
-
-            <Text style={styles.inputLabel}>หมายเหตุ</Text>
-            <TextInput
-              style={[styles.modalInput, styles.notesInput]}
-              placeholder="เช่น โปรโมชั่นสมาชิก, ซื้อแพ็กใหญ่"
-              placeholderTextColor={Theme.colors.onSurfaceVariant}
-              multiline
-              textAlignVertical="top"
-              value={purchaseForm.notes}
-              onChangeText={(value) =>
-                setPurchaseForm((current) => ({ ...current, notes: value }))
-              }
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                recordingPurchase && styles.buttonDisabled,
-              ]}
-              onPress={() => void submitPurchase()}
-              disabled={recordingPurchase}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
-              {recordingPurchase ? (
-                <ActivityIndicator color={Theme.colors.onPrimary} />
-              ) : (
-                <Text style={styles.primaryButtonText}>
-                  ซื้อแล้วและบันทึกราคา
-                </Text>
-              )}
-            </TouchableOpacity>
+              <Text style={styles.purchaseItemName}>{selectedItem?.name}</Text>
+              <Text style={styles.purchaseHint}>
+                {selectedItem?.last_price
+                  ? `ครั้งก่อนซื้อที่ ${formatBaht(selectedItem.last_price)}${selectedItem.last_shop_name ? ` จาก ${selectedItem.last_shop_name}` : ""}`
+                  : "ยังไม่มีประวัติราคาเดิมสำหรับรายการนี้"}
+              </Text>
+
+              <Text style={styles.inputLabel}>ราคาที่ซื้อจริง</Text>
+              <TextInput
+                style={styles.modalInput}
+                keyboardType="decimal-pad"
+                placeholder="เช่น 150.00"
+                value={purchaseForm.price}
+                onChangeText={(value) =>
+                  setPurchaseForm((current) => ({
+                    ...current,
+                    price: value.replace(/[^0-9.]/g, ""),
+                  }))
+                }
+              />
+
+              <Text style={styles.inputLabel}>ร้านค้า</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="เช่น Lotus, Big C"
+                placeholderTextColor={Theme.colors.onSurfaceVariant}
+                value={purchaseForm.shopName}
+                onChangeText={(value) =>
+                  setPurchaseForm((current) => ({
+                    ...current,
+                    shopName: value,
+                  }))
+                }
+              />
+
+              <Text style={styles.inputLabel}>หมายเหตุ</Text>
+              <TextInput
+                style={[styles.modalInput, styles.notesInput]}
+                placeholder="เช่น โปรโมชั่นสมาชิก, ซื้อแพ็กใหญ่"
+                placeholderTextColor={Theme.colors.onSurfaceVariant}
+                multiline
+                textAlignVertical="top"
+                value={purchaseForm.notes}
+                onChangeText={(value) =>
+                  setPurchaseForm((current) => ({ ...current, notes: value }))
+                }
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  recordingPurchase && styles.buttonDisabled,
+                ]}
+                onPress={() => void submitPurchase()}
+                disabled={recordingPurchase}
+              >
+                {recordingPurchase ? (
+                  <ActivityIndicator color={Theme.colors.onPrimary} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>บันทึกราคา</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -959,6 +1041,9 @@ const styles = StyleSheet.create({
   listContent: {
     padding: Theme.spacing.lg,
   },
+  itemCardWrapper: {
+    marginBottom: Theme.spacing.sm,
+  },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -966,7 +1051,13 @@ const styles = StyleSheet.create({
     paddingVertical: Theme.spacing.md,
     paddingHorizontal: Theme.spacing.md,
     borderRadius: Theme.rounding.lg,
-    marginBottom: Theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: Theme.colors.outlineVariant,
+    shadowColor: Theme.colors.onSurface,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   itemCardPurchased: {
     backgroundColor: Theme.colors.surfaceContainerLow,
