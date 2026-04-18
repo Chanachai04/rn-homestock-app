@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import "react-native-url-polyfill/auto";
 
 // Initialize the Supabase client for React Native
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
