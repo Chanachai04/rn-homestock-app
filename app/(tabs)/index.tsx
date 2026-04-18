@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -51,6 +52,12 @@ export default function DashboardScreen() {
   useEffect(() => {
     void loadDashboardData();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadDashboardData(true);
+    }, []),
+  );
 
   const loadDashboardData = async (isRefreshing = false) => {
     try {

@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +31,12 @@ export default function PriceHistoryScreen() {
   useEffect(() => {
     void loadPriceHistory();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPriceHistory(true);
+    }, []),
+  );
 
   const loadPriceHistory = async (isRefreshing = false) => {
     try {

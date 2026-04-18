@@ -6,8 +6,10 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   Platform,
+  RefreshControl,
   SafeAreaView,
   StatusBar,
   StyleSheet,
@@ -16,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 import { Theme } from "../constants/theme";
 import { supabase } from "../utils/supabase";
 
@@ -26,6 +29,7 @@ export default function AddMemberScreen() {
   const [familyName, setFamilyName] = useState<string>("ครอบครัวของฉัน");
   const [members, setMembers] = useState<any[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Modals
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -43,8 +47,13 @@ export default function AddMemberScreen() {
     loadData();
   }, []);
 
-  const loadData = async () => {
-    setInitialLoading(true);
+  const loadData = async (isRefreshing = false) => {
+    if (isRefreshing) {
+      setRefreshing(true);
+    } else {
+      setInitialLoading(true);
+    }
+
     try {
       let fid = await AsyncStorage.getItem("family_id");
       let sessionStr = await AsyncStorage.getItem("user_session");
@@ -69,14 +78,22 @@ export default function AddMemberScreen() {
           setInviteCode(familyObj.invite_code);
         }
 
-        // Fetch Members
+        // Fetch Members and image URL from linked user table if available
         const { data: memberList, error: memberError } = await supabase
           .from("profiles_tb")
-          .select("user_id, first_name, last_name")
+          .select("user_id, first_name, last_name, user_tb(user_image_url)")
           .eq("family_id", fid);
 
-        if (memberError) throw memberError;
-        setMembers(memberList || []);
+        if (memberError) {
+          const { data: fallbackList, error: fallbackError } = await supabase
+            .from("profiles_tb")
+            .select("user_id, first_name, last_name")
+            .eq("family_id", fid);
+          if (fallbackError) throw fallbackError;
+          setMembers(fallbackList || []);
+        } else {
+          setMembers(memberList || []);
+        }
       } else {
         setMembers([]);
         setFamilyName("คุณยังไม่มีครอบครัว");
@@ -85,7 +102,12 @@ export default function AddMemberScreen() {
       console.log(`Error loading data: ${err.message}`);
     } finally {
       setInitialLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    await loadData(true);
   };
 
   const handleGenerateCode = async () => {
@@ -298,18 +320,36 @@ export default function AddMemberScreen() {
             data={members}
             keyExtractor={(item) => item.user_id.toString()}
             contentContainerStyle={styles.listContainer}
-            renderItem={({ item }) => (
-              <View style={styles.memberCard}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {getInitials(item.first_name)}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[Theme.colors.primary]}
+              />
+            }
+            renderItem={({ item }) => {
+              const imageUri =
+                item.user_tb?.user_image_url || item.user_image_url;
+              return (
+                <View style={styles.memberCard}>
+                  {imageUri ? (
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={styles.memberAvatarImage}
+                    />
+                  ) : (
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>
+                        {getInitials(item.first_name)}
+                      </Text>
+                    </View>
+                  )}
+                  <Text style={styles.memberName}>
+                    {item.first_name} {item.last_name || ""}
                   </Text>
                 </View>
-                <Text style={styles.memberName}>
-                  {item.first_name} {item.last_name || ""}
-                </Text>
-              </View>
-            )}
+              );
+            }}
             ListFooterComponent={
               <TouchableOpacity
                 style={styles.leaveButton}
@@ -353,13 +393,25 @@ export default function AddMemberScreen() {
 
             <View style={styles.codeCard}>
               {inviteCode ? (
-                <View style={styles.codeContainer}>
-                  {inviteCode.split("").map((digit, index) => (
-                    <View key={index} style={styles.digitBox}>
-                      <Text style={styles.digitText}>{digit}</Text>
-                    </View>
-                  ))}
-                </View>
+                <>
+                  <View style={styles.codeContainer}>
+                    {inviteCode.split("").map((digit, index) => (
+                      <View key={index} style={styles.digitBox}>
+                        <Text style={styles.digitText}>{digit}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.qrContainer}>
+                    <QRCode
+                      value={inviteCode}
+                      size={200}
+                      backgroundColor="transparent"
+                    />
+                  </View>
+                  <Text style={styles.qrLabel}>
+                    สแกน QR นี้เพื่อเข้าร่วมครอบครัว
+                  </Text>
+                </>
               ) : (
                 <Text style={styles.noCodeText}>ยังไม่มีรหัสเชิญชวน</Text>
               )}
@@ -429,6 +481,17 @@ export default function AddMemberScreen() {
               ) : (
                 <Text style={styles.primaryButtonText}>เข้าร่วมครอบครัว</Text>
               )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                setShowJoinModal(false);
+                router.push("/scan-join");
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>
+                สแกน QR เพื่อเข้าร่วม
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -514,6 +577,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Theme.colors.onSurface,
     marginLeft: Theme.spacing.md,
+  },
+  memberAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: Theme.rounding.full,
+    resizeMode: "cover",
   },
   leaveButton: {
     flexDirection: "row",
@@ -618,11 +687,35 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: Theme.spacing.xl,
   },
+  qrContainer: {
+    alignItems: "center",
+    marginVertical: Theme.spacing.lg,
+  },
+  qrLabel: {
+    textAlign: "center",
+    color: Theme.colors.onSurfaceVariant,
+    marginTop: Theme.spacing.sm,
+    fontSize: 14,
+  },
   primaryButton: {
     backgroundColor: Theme.colors.primary,
     padding: Theme.spacing.md,
     borderRadius: Theme.rounding.full,
     alignItems: "center",
+  },
+  secondaryButton: {
+    marginTop: Theme.spacing.sm,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.rounding.full,
+    alignItems: "center",
+    backgroundColor: Theme.colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: Theme.colors.primary,
+  },
+  secondaryButtonText: {
+    color: Theme.colors.primary,
+    fontSize: 16,
+    fontWeight: "700",
   },
   disabledButton: {
     opacity: 0.7,

@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -87,6 +88,12 @@ export default function ShoppingListScreen() {
   useEffect(() => {
     void loadShoppingList();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadShoppingList(true);
+    }, []),
+  );
 
   const loadShoppingList = async (isRefreshing = false) => {
     try {
