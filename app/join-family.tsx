@@ -1,17 +1,17 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
-import { Theme } from "../constants/Theme";
+import { Theme } from "../constants/theme";
 import { supabase } from "../utils/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function JoinFamilyScreen() {
   const [inviteCode, setInviteCode] = useState("");
@@ -34,7 +34,10 @@ export default function JoinFamilyScreen() {
         .single();
 
       if (familyError || !family) {
-        Alert.alert("ไม่พบข้อมูล", "รหัสเชิญชวนไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+        Alert.alert(
+          "ไม่พบข้อมูล",
+          "รหัสเชิญชวนไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
+        );
         setLoading(false);
         return;
       }
@@ -64,11 +67,17 @@ export default function JoinFamilyScreen() {
         family: family,
       };
 
-      await AsyncStorage.setItem("user_session", JSON.stringify(updatedSession));
+      await AsyncStorage.setItem(
+        "user_session",
+        JSON.stringify(updatedSession),
+      );
       await AsyncStorage.setItem("family_id", family.id); // Also save family_id explicitly just in case
 
-      Alert.alert("สำเร็จ!", `คุณได้เข้าร่วมครอบครัว "${family.name}" เรียบร้อยแล้ว`);
-      
+      Alert.alert(
+        "สำเร็จ!",
+        `คุณได้เข้าร่วมครอบครัว "${family.name}" เรียบร้อยแล้ว`,
+      );
+
       // Navigate to tabs to reflect new family state
       router.replace("/(tabs)");
     } catch (err: any) {
@@ -82,7 +91,8 @@ export default function JoinFamilyScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>เข้าร่วมครอบครัว</Text>
       <Text style={styles.subtitle}>
-        กรอกรหัสเชิญชวน 5 หลักที่ได้รับจากสมาชิกในครอบครัว เพื่อเข้าร่วมจัดการของในบ้านร่วมกัน
+        กรอกรหัสเชิญชวน 5 หลักที่ได้รับจากสมาชิกในครอบครัว
+        เพื่อเข้าร่วมจัดการของในบ้านร่วมกัน
       </Text>
 
       <View style={styles.inputGroup}>

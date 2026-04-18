@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Theme } from "../constants/Theme";
+import { Theme } from "../constants/theme";
 
 export default function NotificationScreen() {
   const router = useRouter();
@@ -20,12 +20,20 @@ export default function NotificationScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.navHeader, { paddingTop: insets.top || Theme.spacing.sm }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialCommunityIcons 
-            name="chevron-left" 
-            size={28} 
-            color={Theme.colors.onSurface} 
+      <View
+        style={[
+          styles.navHeader,
+          { paddingTop: insets.top || Theme.spacing.sm },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons
+            name="chevron-left"
+            size={28}
+            color={Theme.colors.onSurface}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>การแจ้งเตือน</Text>
@@ -37,10 +45,10 @@ export default function NotificationScreen() {
         <View style={styles.card}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <MaterialCommunityIcons 
-                name="bell-badge-outline" 
-                size={24} 
-                color={Theme.colors.primary} 
+              <MaterialCommunityIcons
+                name="bell-badge-outline"
+                size={24}
+                color={Theme.colors.primary}
               />
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingLabel}>แจ้งเตือนของใกล้หมด</Text>
@@ -50,7 +58,10 @@ export default function NotificationScreen() {
               </View>
             </View>
             <Switch
-              trackColor={{ false: "#e2e8f0", true: Theme.colors.primaryContainer }}
+              trackColor={{
+                false: "#e2e8f0",
+                true: Theme.colors.primaryContainer,
+              }}
               thumbColor={stockAlertEnabled ? Theme.colors.primary : "#94a3b8"}
               ios_backgroundColor="#e2e8f0"
               onValueChange={setStockAlertEnabled}
@@ -61,10 +72,10 @@ export default function NotificationScreen() {
 
         <View style={styles.emptyState}>
           <View style={styles.emptyIconBadge}>
-            <MaterialCommunityIcons 
-              name="bell-off-outline" 
-              size={60} 
-              color={Theme.colors.onSurfaceVariant} 
+            <MaterialCommunityIcons
+              name="bell-off-outline"
+              size={60}
+              color={Theme.colors.onSurfaceVariant}
               style={{ opacity: 0.3 }}
             />
           </View>
@@ -79,9 +90,9 @@ export default function NotificationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: Theme.colors.surface 
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.surface,
   },
   navHeader: {
     flexDirection: "row",

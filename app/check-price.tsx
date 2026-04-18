@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Theme } from "../constants/Theme";
+import { Theme } from "../constants/theme";
 import {
   PriceHistoryEntry,
   formatBaht,

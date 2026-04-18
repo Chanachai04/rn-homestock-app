@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Theme } from "../../constants/Theme";
+import { Theme } from "../../constants/theme";
 import {
   AppSession,
   PeriodType,

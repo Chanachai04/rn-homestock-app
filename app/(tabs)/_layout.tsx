@@ -1,8 +1,7 @@
-import { Tabs } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Theme } from '../../constants/Theme';
-import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Theme } from "../../constants/theme";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -18,7 +17,7 @@ export default function TabLayout() {
         },
         headerTitleStyle: {
           color: Theme.colors.onSurface,
-          fontWeight: '700',
+          fontWeight: "700",
         },
         tabBarActiveTintColor: Theme.colors.primary,
         tabBarInactiveTintColor: Theme.colors.onSurfaceVariant,
@@ -40,29 +39,49 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'หน้าหลัก',
-          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="home-variant" size={28} color={color} />,
+          title: "หน้าหลัก",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="home-variant"
+              size={28}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="shopping-list"
         options={{
-          title: 'รายการซื้อของ',
-          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="cart-outline" size={26} color={color} />,
+          title: "รายการซื้อของ",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="cart-outline"
+              size={26}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="price-history"
         options={{
-          title: 'ประวัติราคา',
-          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="history" size={26} color={color} />,
+          title: "ประวัติราคา",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="history" size={26} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'ตั้งค่าครอบครัว',
-          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="account-group-outline" size={26} color={color} />,
+          title: "ตั้งค่าครอบครัว",
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="account-group-outline"
+              size={26}
+              color={color}
+            />
+          ),
         }}
       />
     </Tabs>

@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Theme } from "../../constants/Theme";
+import { Theme } from "../../constants/theme";
 import { supabase } from "../../utils/supabase";
 
 // Fix for bcryptjs in React Native environment

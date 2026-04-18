@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Theme } from "../../constants/Theme";
+import { Theme } from "../../constants/theme";
 import { supabase } from "../../utils/supabase";
 
 export default function ForgotPasswordScreen() {
@@ -56,12 +56,20 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.navHeader, { paddingTop: insets.top || Theme.spacing.sm }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialCommunityIcons 
-            name="chevron-left" 
-            size={28} 
-            color={Theme.colors.onSurface} 
+      <View
+        style={[
+          styles.navHeader,
+          { paddingTop: insets.top || Theme.spacing.sm },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons
+            name="chevron-left"
+            size={28}
+            color={Theme.colors.onSurface}
           />
         </TouchableOpacity>
       </View>
@@ -72,10 +80,10 @@ export default function ForgotPasswordScreen() {
       >
         <View style={styles.header}>
           <View style={styles.iconBadge}>
-            <MaterialCommunityIcons 
-              name="lock-reset" 
-              size={44} 
-              color={Theme.colors.primary} 
+            <MaterialCommunityIcons
+              name="lock-reset"
+              size={44}
+              color={Theme.colors.primary}
             />
           </View>
           <Text style={styles.title}>ลืมรหัสผ่าน?</Text>
@@ -86,10 +94,10 @@ export default function ForgotPasswordScreen() {
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <MaterialCommunityIcons 
-              name="email-outline" 
-              size={20} 
-              color={Theme.colors.onSurfaceVariant} 
+            <MaterialCommunityIcons
+              name="email-outline"
+              size={20}
+              color={Theme.colors.onSurfaceVariant}
               style={styles.inputIcon}
             />
             <TextInput
@@ -130,9 +138,9 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: Theme.colors.surface 
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.surface,
   },
   navHeader: {
     paddingHorizontal: Theme.spacing.md,
@@ -151,9 +159,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Theme.spacing.xl,
     paddingTop: Theme.spacing.xl,
   },
-  header: { 
-    alignItems: "center", 
-    marginBottom: Theme.spacing.xxl 
+  header: {
+    alignItems: "center",
+    marginBottom: Theme.spacing.xxl,
   },
   iconBadge: {
     width: 90,
@@ -176,14 +184,14 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.sm,
     textAlign: "center",
   },
-  subtitle: { 
-    fontSize: 16, 
+  subtitle: {
+    fontSize: 16,
     color: Theme.colors.onSurfaceVariant,
     textAlign: "center",
     lineHeight: 24,
   },
-  form: { 
-    width: "100%" 
+  form: {
+    width: "100%",
   },
   inputContainer: {
     flexDirection: "row",
@@ -192,15 +200,16 @@ const styles = StyleSheet.create({
     borderRadius: Theme.rounding.md,
     marginBottom: Theme.spacing.xl,
     paddingHorizontal: Theme.spacing.md,
-    paddingVertical: Platform.OS === "ios" ? Theme.spacing.md : Theme.spacing.xs,
+    paddingVertical:
+      Platform.OS === "ios" ? Theme.spacing.md : Theme.spacing.xs,
   },
   inputIcon: {
     marginRight: Theme.spacing.sm,
   },
-  input: { 
+  input: {
     flex: 1,
-    fontSize: 16, 
-    color: Theme.colors.onSurface 
+    fontSize: 16,
+    color: Theme.colors.onSurface,
   },
   primaryButton: {
     backgroundColor: Theme.colors.primary,
@@ -219,9 +228,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "bold",
   },
-  ghostButton: { 
-    paddingVertical: Theme.spacing.md, 
-    alignItems: "center" 
+  ghostButton: {
+    paddingVertical: Theme.spacing.md,
+    alignItems: "center",
   },
   ghostButtonText: {
     color: Theme.colors.onSurfaceVariant,

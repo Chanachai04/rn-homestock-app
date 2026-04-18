@@ -1,23 +1,23 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
   ActivityIndicator,
-  TextInput,
   Alert,
   FlatList,
   Modal,
+  Platform,
   SafeAreaView,
   StatusBar,
-  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { Theme } from "../constants/Theme";
+import { Theme } from "../constants/theme";
 import { supabase } from "../utils/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function AddMemberScreen() {
   const router = useRouter();
@@ -90,13 +90,16 @@ export default function AddMemberScreen() {
 
   const handleGenerateCode = async () => {
     if (!familyId) {
-      Alert.alert("ข้อผิดพลาด", "คุณยังไม่มีครอบครัว กรุณาเข้าร่วมครอบครัวก่อน");
+      Alert.alert(
+        "ข้อผิดพลาด",
+        "คุณยังไม่มีครอบครัว กรุณาเข้าร่วมครอบครัวก่อน",
+      );
       return;
     }
     setLoadingGenerate(true);
     try {
       const newCode = Array.from({ length: 5 }, () =>
-        Math.floor(Math.random() * 10)
+        Math.floor(Math.random() * 10),
       ).join("");
 
       const { error } = await supabase
@@ -133,7 +136,10 @@ export default function AddMemberScreen() {
         .single();
 
       if (familyError || !family) {
-        Alert.alert("ไม่พบข้อมูล", "รหัสเชิญชวนไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+        Alert.alert(
+          "ไม่พบข้อมูล",
+          "รหัสเชิญชวนไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
+        );
         setLoadingJoin(false);
         return;
       }
@@ -155,10 +161,16 @@ export default function AddMemberScreen() {
         family: family,
       };
 
-      await AsyncStorage.setItem("user_session", JSON.stringify(updatedSession));
+      await AsyncStorage.setItem(
+        "user_session",
+        JSON.stringify(updatedSession),
+      );
       await AsyncStorage.setItem("family_id", family.id);
 
-      Alert.alert("สำเร็จ!", `คุณได้เข้าร่วมครอบครัว "${family.name}" เรียบร้อยแล้ว`);
+      Alert.alert(
+        "สำเร็จ!",
+        `คุณได้เข้าร่วมครอบครัว "${family.name}" เรียบร้อยแล้ว`,
+      );
       setShowJoinModal(false);
       loadData();
     } catch (err: any) {
@@ -194,7 +206,10 @@ export default function AddMemberScreen() {
                 family: null,
               };
 
-              await AsyncStorage.setItem("user_session", JSON.stringify(updatedSession));
+              await AsyncStorage.setItem(
+                "user_session",
+                JSON.stringify(updatedSession),
+              );
               await AsyncStorage.removeItem("family_id");
 
               Alert.alert("ออกจากครอบครัวเรียบร้อย");
@@ -204,7 +219,7 @@ export default function AddMemberScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -221,7 +236,11 @@ export default function AddMemberScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
-        <MaterialCommunityIcons name="arrow-left" size={24} color={Theme.colors.onSurface} />
+        <MaterialCommunityIcons
+          name="arrow-left"
+          size={24}
+          color={Theme.colors.onSurface}
+        />
       </TouchableOpacity>
       <Text style={styles.headerTitle} numberOfLines={1}>
         {familyName}
@@ -231,13 +250,21 @@ export default function AddMemberScreen() {
           style={styles.headerIconWrapper}
           onPress={() => setShowJoinModal(true)}
         >
-          <MaterialCommunityIcons name="account-search" size={24} color={Theme.colors.primary} />
+          <MaterialCommunityIcons
+            name="account-search"
+            size={24}
+            color={Theme.colors.primary}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerIconWrapper}
           onPress={() => setShowGenerateModal(true)}
         >
-          <MaterialCommunityIcons name="qrcode-plus" size={24} color={Theme.colors.primary} />
+          <MaterialCommunityIcons
+            name="qrcode-plus"
+            size={24}
+            color={Theme.colors.primary}
+          />
         </TouchableOpacity>
       </View>
     </View>
@@ -249,10 +276,18 @@ export default function AddMemberScreen() {
 
       <View style={styles.content}>
         {initialLoading ? (
-          <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 40 }} />
+          <ActivityIndicator
+            size="large"
+            color={Theme.colors.primary}
+            style={{ marginTop: 40 }}
+          />
         ) : !familyId ? (
           <View style={styles.emptyContainer}>
-            <MaterialCommunityIcons name="account-group-outline" size={80} color={Theme.colors.outlineVariant} />
+            <MaterialCommunityIcons
+              name="account-group-outline"
+              size={80}
+              color={Theme.colors.outlineVariant}
+            />
             <Text style={styles.emptyTitle}>คุณยังไม่มีครอบครัว</Text>
             <Text style={styles.emptyText}>
               กรุณากดปุ่มค้นหาที่มุมบนขวา เพื่อกรอกรหัสเข้าร่วมครอบครัวอื่น
@@ -266,7 +301,9 @@ export default function AddMemberScreen() {
             renderItem={({ item }) => (
               <View style={styles.memberCard}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{getInitials(item.first_name)}</Text>
+                  <Text style={styles.avatarText}>
+                    {getInitials(item.first_name)}
+                  </Text>
                 </View>
                 <Text style={styles.memberName}>
                   {item.first_name} {item.last_name || ""}
@@ -274,8 +311,15 @@ export default function AddMemberScreen() {
               </View>
             )}
             ListFooterComponent={
-              <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveFamily}>
-                <MaterialCommunityIcons name="exit-to-app" size={20} color={Theme.colors.error} />
+              <TouchableOpacity
+                style={styles.leaveButton}
+                onPress={handleLeaveFamily}
+              >
+                <MaterialCommunityIcons
+                  name="exit-to-app"
+                  size={20}
+                  color={Theme.colors.error}
+                />
                 <Text style={styles.leaveButtonText}>ออกจากครอบครัว</Text>
               </TouchableOpacity>
             }
@@ -284,15 +328,28 @@ export default function AddMemberScreen() {
       </View>
 
       {/* Generate Code Modal */}
-      <Modal visible={showGenerateModal} animationType="slide" transparent={true}>
+      <Modal
+        visible={showGenerateModal}
+        animationType="slide"
+        transparent={true}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.modalClose} onPress={() => setShowGenerateModal(false)}>
-              <MaterialCommunityIcons name="close" size={24} color={Theme.colors.onSurface} />
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowGenerateModal(false)}
+            >
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={Theme.colors.onSurface}
+              />
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>รหัสเชิญเข้าครอบครัว</Text>
-            <Text style={styles.modalSubtitle}>ส่งรหัสนี้ให้ผู้อื่นเพื่อเพิ่มเข้าครอบครัวคุณ</Text>
+            <Text style={styles.modalSubtitle}>
+              ส่งรหัสนี้ให้ผู้อื่นเพื่อเพิ่มเข้าครอบครัวคุณ
+            </Text>
 
             <View style={styles.codeCard}>
               {inviteCode ? (
@@ -309,7 +366,10 @@ export default function AddMemberScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.primaryButton, loadingGenerate && styles.disabledButton]}
+              style={[
+                styles.primaryButton,
+                loadingGenerate && styles.disabledButton,
+              ]}
               onPress={handleGenerateCode}
               disabled={loadingGenerate || !familyId}
             >
@@ -329,12 +389,21 @@ export default function AddMemberScreen() {
       <Modal visible={showJoinModal} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <TouchableOpacity style={styles.modalClose} onPress={() => setShowJoinModal(false)}>
-              <MaterialCommunityIcons name="close" size={24} color={Theme.colors.onSurface} />
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowJoinModal(false)}
+            >
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={Theme.colors.onSurface}
+              />
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>เข้าร่วมครอบครัว</Text>
-            <Text style={styles.modalSubtitle}>กรอกรหัสเชิญชวน 5 หลักที่ได้รับมาเพื่อเข้าร่วม</Text>
+            <Text style={styles.modalSubtitle}>
+              กรอกรหัสเชิญชวน 5 หลักที่ได้รับมาเพื่อเข้าร่วม
+            </Text>
 
             <TextInput
               style={styles.inputCode}
@@ -348,7 +417,10 @@ export default function AddMemberScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.primaryButton, loadingJoin && styles.disabledButton]}
+              style={[
+                styles.primaryButton,
+                loadingJoin && styles.disabledButton,
+              ]}
               onPress={handleJoinFamily}
               disabled={loadingJoin}
             >

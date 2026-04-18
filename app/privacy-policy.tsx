@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Theme } from "../constants/Theme";
+import { Theme } from "../constants/theme";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
@@ -17,12 +17,20 @@ export default function PrivacyPolicyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.navHeader, { paddingTop: insets.top || Theme.spacing.sm }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <MaterialCommunityIcons 
-            name="chevron-left" 
-            size={28} 
-            color={Theme.colors.onSurface} 
+      <View
+        style={[
+          styles.navHeader,
+          { paddingTop: insets.top || Theme.spacing.sm },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons
+            name="chevron-left"
+            size={28}
+            color={Theme.colors.onSurface}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>นโยบายความเป็นส่วนตัว</Text>
@@ -33,28 +41,35 @@ export default function PrivacyPolicyScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. ข้อมูลที่เราเก็บรวบรวม</Text>
           <Text style={styles.paragraph}>
-            HomeStock เก็บรวบรวมข้อมูลที่คุณให้ไว้เมื่อลงทะเบียนใช้งาน เช่น ชื่อ-นามสกุล, อีเมล และข้อมูลรายการสิ่งของที่คุณบันทึกไว้ในแอปพลิเคชัน
+            HomeStock เก็บรวบรวมข้อมูลที่คุณให้ไว้เมื่อลงทะเบียนใช้งาน เช่น
+            ชื่อ-นามสกุล, อีเมล
+            และข้อมูลรายการสิ่งของที่คุณบันทึกไว้ในแอปพลิเคชัน
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>2. การใช้งานข้อมูล</Text>
           <Text style={styles.paragraph}>
-            เราใช้ข้อมูลของคุณเพื่อวัตถุประสงค์ในการให้บริการแอปพลิเคชัน HomeStock รวมถึงการจัดการสต็อกสินค้าของคุณ การแจ้งเตือน และการปรับปรุงประสบการณ์การใช้งาน
+            เราใช้ข้อมูลของคุณเพื่อวัตถุประสงค์ในการให้บริการแอปพลิเคชัน
+            HomeStock รวมถึงการจัดการสต็อกสินค้าของคุณ การแจ้งเตือน
+            และการปรับปรุงประสบการณ์การใช้งาน
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>3. การรักษาความปลอดภัย</Text>
           <Text style={styles.paragraph}>
-            เราใช้มาตรการทางเทคนิคและการจัดการที่เหมาะสมเพื่อปกป้องข้อมูลส่วนบุคคลของคุณจากการเข้าถึงโดยไม่ได้รับอนุญาต การสูญหาย หรือการเปิดเผย
+            เราใช้มาตรการทางเทคนิคและการจัดการที่เหมาะสมเพื่อปกป้องข้อมูลส่วนบุคคลของคุณจากการเข้าถึงโดยไม่ได้รับอนุญาต
+            การสูญหาย หรือการเปิดเผย
           </Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>4. สิทธิส่วนบุคคล</Text>
           <Text style={styles.paragraph}>
-            คุณมีสิทธิในการเข้าถึง แก้ไข หรือลบข้อมูลส่วนบุคคลของคุณได้ตลอดเวลาผ่านการตั้งค่าในแอปพลิเคชัน หรือติดต่อผู้พัฒนา
+            คุณมีสิทธิในการเข้าถึง แก้ไข
+            หรือลบข้อมูลส่วนบุคคลของคุณได้ตลอดเวลาผ่านการตั้งค่าในแอปพลิเคชัน
+            หรือติดต่อผู้พัฒนา
           </Text>
         </View>
 
@@ -67,9 +82,9 @@ export default function PrivacyPolicyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: Theme.colors.surface 
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.surface,
   },
   navHeader: {
     flexDirection: "row",
