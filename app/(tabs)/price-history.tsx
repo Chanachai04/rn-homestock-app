@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -27,6 +28,7 @@ export default function PriceHistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     void loadPriceHistory();
@@ -108,7 +110,14 @@ export default function PriceHistoryScreen() {
     );
   };
 
-  const allSelectableIds = history.map((entry) => entry.id);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredHistory = normalizedQuery
+    ? history.filter((entry) =>
+        entry.item_name.toLowerCase().includes(normalizedQuery),
+      )
+    : history;
+
+  const allSelectableIds = filteredHistory.map((entry) => entry.id);
   const isAllSelected =
     allSelectableIds.length > 0 &&
     selectedIds.length === allSelectableIds.length;
@@ -279,6 +288,36 @@ export default function PriceHistoryScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.searchBar}>
+          <MaterialCommunityIcons
+            name="magnify"
+            size={20}
+            color={Theme.colors.primary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="ค้นหาประวัติราคา..."
+            placeholderTextColor={Theme.colors.onSurfaceVariant}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={18}
+                color={Theme.colors.onSurfaceVariant}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {selectionMode ? (
           <View style={styles.selectionBar}>
             <Text style={styles.selectionText}>
@@ -319,7 +358,7 @@ export default function PriceHistoryScreen() {
       </View>
 
       <FlatList
-        data={history}
+        data={filteredHistory}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -348,7 +387,8 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.surface,
   },
   header: {
-    padding: Theme.spacing.xl,
+    paddingHorizontal: Theme.spacing.xl,
+    paddingTop: Theme.spacing.xl,
     paddingBottom: Theme.spacing.md,
   },
   headerTopRow: {
@@ -432,6 +472,25 @@ const styles = StyleSheet.create({
     color: Theme.colors.onPrimary,
     fontSize: 13,
     fontWeight: "700",
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Theme.colors.surfaceContainerHigh,
+    borderRadius: Theme.rounding.full,
+    paddingHorizontal: Theme.spacing.md,
+    marginTop: Theme.spacing.md,
+    marginBottom: Theme.spacing.xs,
+  },
+  searchIcon: {
+    marginRight: Theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 44,
+    fontSize: 14,
+    color: Theme.colors.onSurface,
+    paddingVertical: Theme.spacing.sm,
   },
   listContent: {
     paddingHorizontal: Theme.spacing.lg,

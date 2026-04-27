@@ -82,6 +82,7 @@ export default function ShoppingListScreen() {
   const [itemForm, setItemForm] = useState<ItemFormState>(defaultItemForm);
   const [purchaseForm, setPurchaseForm] =
     useState<PurchaseFormState>(defaultPurchaseForm);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     void loadShoppingList();
@@ -630,22 +631,47 @@ export default function ShoppingListScreen() {
     );
   }
 
-  const purchasedCount = items.filter((item) => item.is_purchased).length;
-  const pendingCount = items.length - purchasedCount;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredItems = normalizedQuery
+    ? items.filter((item) =>
+        item.name.toLowerCase().includes(normalizedQuery),
+      )
+    : items;
+
+  const purchasedCount = filteredItems.filter((item) => item.is_purchased).length;
+  const pendingCount = filteredItems.length - purchasedCount;
 
   return (
     <View style={styles.container}>
       <View style={styles.searchSection}>
         <View style={styles.searchInputContainer}>
           <MaterialCommunityIcons
-            name="cart-plus"
+            name="magnify"
             size={20}
             color={Theme.colors.primary}
             style={styles.searchIcon}
           />
-          <Text style={styles.searchInput}>
-            จัดการของประจำสัปดาห์และรายเดือนของบ้านคุณ
-          </Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="ค้นหารายการสินค้า..."
+            placeholderTextColor={Theme.colors.onSurfaceVariant}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialCommunityIcons
+                name="close-circle"
+                size={18}
+                color={Theme.colors.onSurfaceVariant}
+              />
+            </TouchableOpacity>
+          )}
         </View>
         <TouchableOpacity style={styles.addButton} onPress={openCreateModal}>
           <MaterialCommunityIcons
@@ -671,7 +697,7 @@ export default function ShoppingListScreen() {
       </View>
 
       <FlatList
-        data={items}
+        data={filteredItems}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}

@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "rn-homestock-app",
-    "slug": "rn-homestock-app",
+    "name": "rn-homestock-app2",
+    "slug": "rn-homestock-app2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rnhomestockapp",
+    "scheme": "rnhomestockapp2",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -19,8 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.chn.me.rnhomestockapp"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -44,12 +43,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "98d8cef9-5789-4184-9a0b-e8ef31580395"
-      }
     }
   }
 }
